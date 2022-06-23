@@ -15,6 +15,7 @@ class _ChatScreenState extends State<ChatScreen> {
   late Socket socket;
   String otherSocketId = '';
   bool otherTyping = false;
+  final message = [];
 
   final TextEditingController _messageController = TextEditingController();
 
@@ -48,9 +49,17 @@ class _ChatScreenState extends State<ChatScreen> {
       // handle socket event
       socket.on('connect', (data) => print('hoan.dv: connect ${socket.id}'));
       socket.on('typing', (data) => _handleTyping(data));
+      socket.on('message', (data) => _handleMessage(data));
     } catch (e) {
-      print(e.toString());
+      print('hoan.dv: error is ${e.toString()}');
     }
+  }
+
+  void _handleMessage(Map<String, dynamic> data) {
+    final userSend = data['id'];
+    final receiveMsg = data['message'];
+    message.add(receiveMsg);
+    setState(() {});
   }
 
   void _handleTyping(Map<String, dynamic> data) {
@@ -62,6 +71,18 @@ class _ChatScreenState extends State<ChatScreen> {
       otherTyping = data['typing'] as bool;
       setState(() {});
     }
+  }
+
+  // Send a Message to the server
+  _sendMessage(String message) {
+    socket.emit(
+      "message",
+      {
+        "id": socket.id,
+        "message": message, // Message to be sent
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
+      },
+    );
   }
 
   @override
@@ -83,9 +104,10 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Expanded(
               child: ListView.builder(
-                itemCount: 10,
+                itemCount: message.length,
                 itemBuilder: (_, index) {
-                  return Text(' content of message');
+                  final msg = message[index];
+                  return Text(msg);
                 },
               ),
             ),
@@ -114,6 +136,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     width: 5,
                   ),
                   GestureDetector(
+                    onTap: () {
+                      // send message:
+                      _sendMessage(_messageController.text);
+                      _messageController.clear();
+                    },
                     child: const Icon(
                       Icons.send,
                       size: 36,
